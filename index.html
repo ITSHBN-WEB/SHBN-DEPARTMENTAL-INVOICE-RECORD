@@ -285,6 +285,27 @@
   .admin-row{ display:flex; justify-content:space-between; align-items:center; gap:10px; padding:10px 12px; border-bottom:1px dashed var(--paper-line); }
   .admin-row .info{ font-size:0.8rem; }
   .admin-row .inv-no{ font-family:'JetBrains Mono',monospace; font-weight:700; color:var(--leather); }
+
+  .report-controls{ display:flex; gap:14px; align-items:flex-end; flex-wrap:wrap; }
+  .report-controls > div{ min-width:150px; }
+  #report-print-area table{ width:100%; border-collapse:collapse; font-size:0.76rem; }
+  #report-print-area th{
+    text-align:left; padding:7px 5px; border-bottom:2px solid var(--leather);
+    font-family:'Inter',sans-serif; text-transform:uppercase; font-size:0.68rem; letter-spacing:0.04em; color:var(--leather);
+  }
+  #report-print-area td{ padding:6px 5px; border-bottom:1px dashed var(--paper-line); font-family:'JetBrains Mono',monospace; }
+  #report-print-area .status-pending{ color:var(--brass); font-weight:700; }
+  #report-print-area .status-completed{ color:var(--stamp-green); font-weight:700; }
+  #report-heading{ text-align:center; margin-bottom:16px; }
+  #report-heading h3{ font-family:'Fraunces',serif; color:var(--leather); margin:0 0 4px; font-size:1.2rem; }
+  #report-range-label{ font-family:'JetBrains Mono',monospace; font-size:0.75rem; color:var(--muted); }
+
+  @media print{
+    body *{ visibility:hidden; }
+    #report-print-area, #report-print-area *{ visibility:visible; }
+    #report-print-area{ position:absolute; top:0; left:0; width:100%; }
+    .no-print{ display:none !important; }
+  }
 </style>
 </head>
 <body>
@@ -421,6 +442,44 @@
           <div id="admin-completed-list"></div>
           <div class="empty-note" id="admin-completed-empty" style="display:none;">No completed invoices in this range.</div>
         </div>
+
+        <div class="card no-print">
+          <h2 class="section-title">Printable Report</h2>
+          <div class="report-controls">
+            <div>
+              <label>From Date</label>
+              <input type="date" id="report-start">
+            </div>
+            <div>
+              <label>To Date</label>
+              <input type="date" id="report-end">
+            </div>
+            <div>
+              <button class="btn btn-primary" id="btn-generate-report">Generate Report</button>
+            </div>
+          </div>
+          <div class="msg" id="report-msg"></div>
+        </div>
+
+        <div class="card" id="report-print-area" style="display:none;">
+          <div id="report-heading">
+            <h3>SHBN Departmental Invoice Report</h3>
+            <div id="report-range-label"></div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th><th>Supplier</th><th>Main Dept</th><th>Sub Dept</th>
+                <th>Inv/ODO No</th><th>PO No</th><th>Carton</th><th>Amount</th>
+                <th>Record By</th><th>Key In By</th><th>Date Key In</th><th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="report-tbody"></tbody>
+          </table>
+          <div class="actions-row no-print" style="margin-top:16px;">
+            <button class="btn btn-ghost" id="btn-print-report">Print Report</button>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -486,7 +545,7 @@
    (Deploy the paired Code.gs as a Web App: Execute as "Me",
    Who has access "Anyone", then paste the /exec URL below)
    ========================================================= */
-const GAS_URL = "https://script.google.com/macros/s/AKfycbyiggSyV-bhBeoqKSPHt2UEc_96Qzfldp5lxeuYGrdeFQ_qzehOzfXCc1X-2ir2ok6K6A/exec";
+const GAS_URL = "https://script.google.com/macros/s/YOUR-DEPLOYMENT-ID/exec";
 const ADMIN_PASSWORD = "8888";
 
 // Calls the Apps Script backend. Uses text/plain content-type so the
@@ -1020,6 +1079,81 @@ document.getElementById("btn-do-delete").addEventListener("click", async () => {
   rowToDelete = null;
   loadAdminPending();
   loadAdminCompleted();
+});
+
+/* =========================================================
+   PRINTABLE REPORT (Admin)
+   ========================================================= */
+document.getElementById("btn-generate-report").addEventListener("click", async () => {
+  const start = document.getElementById("report-start").value;
+  const end = document.getElementById("report-end").value;
+  const msg = document.getElementById("report-msg");
+
+  if(!start || !end){
+    msg.className = "msg error";
+    msg.textContent = "Please select both a From Date and To Date.";
+    return;
+  }
+  if(start > end){
+    msg.className = "msg error";
+    msg.textContent = "From Date must be on or before To Date.";
+    return;
+  }
+
+  msg.className = "msg";
+  msg.textContent = "Generating report...";
+
+  let resp;
+  try{
+    resp = await callGas("listReport", { startDate: start, endDate: end });
+  } catch(err){
+    msg.className = "msg error"; msg.textContent = "Error: " + err.message; return;
+  }
+  if(!resp.success){
+    msg.className = "msg error"; msg.textContent = "Error: " + (resp.error || "");
+    return;
+  }
+  msg.textContent = "";
+  renderReport(resp.data || [], start, end);
+});
+
+function renderReport(rows, start, end){
+  const area = document.getElementById("report-print-area");
+  const tbody = document.getElementById("report-tbody");
+  tbody.innerHTML = "";
+
+  document.getElementById("report-range-label").textContent =
+    `${start} to ${end}  ·  ${rows.length} record(s)  ·  generated ${new Date().toLocaleString()}`;
+
+  if(rows.length === 0){
+    tbody.innerHTML = `<tr><td colspan="12" style="text-align:center;color:var(--muted);">No records found in this range.</td></tr>`;
+  } else {
+    rows.forEach(row => {
+      const tr = document.createElement("tr");
+      const statusClass = row.status === "COMPLETED" ? "status-completed" : "status-pending";
+      tr.innerHTML = `
+        <td>${escapeHtml(row.date)}</td>
+        <td>${escapeHtml(row.supplier)}</td>
+        <td>${escapeHtml(row.main_department)}</td>
+        <td>${escapeHtml(row.sub_department)}</td>
+        <td>${escapeHtml(row.inv_odo_no)}</td>
+        <td>${escapeHtml(row.po_no)}</td>
+        <td>${row.total_carton === "" || row.total_carton == null ? "-" : row.total_carton}</td>
+        <td>${row.total_amount === "" || row.total_amount == null ? "-" : row.total_amount}</td>
+        <td>${escapeHtml(row.record_by)}</td>
+        <td>${escapeHtml(row.key_in_by) || "-"}</td>
+        <td>${escapeHtml(row.date_key_in) || "-"}</td>
+        <td class="${statusClass}">${escapeHtml(row.status)}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+  area.style.display = "";
+  area.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+document.getElementById("btn-print-report").addEventListener("click", () => {
+  window.print();
 });
 
 /* Initial load */
