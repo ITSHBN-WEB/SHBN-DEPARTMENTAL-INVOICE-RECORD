@@ -781,7 +781,7 @@ function renderPendingList(){
   }
   if(pendingSearchTerm){
     const term = pendingSearchTerm.toUpperCase();
-    filtered = filtered.filter(r => (r.inv_odo_no || "").toUpperCase().includes(term));
+    filtered = filtered.filter(r => String(r.inv_odo_no ?? "").toUpperCase().includes(term));
   }
 
   if(filtered.length === 0){
