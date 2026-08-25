@@ -187,6 +187,7 @@
     cursor:pointer;
   }
   .dept-row button.active{ background:var(--leather); color:var(--paper); }
+  #pending-search{ margin-bottom:14px; }
   .blink-notice{
     color:var(--stamp-red);
     font-weight:700;
@@ -390,6 +391,7 @@
             <button data-dept="SOFTLINE">Softline</button>
             <button data-dept="EG">EG</button>
           </div>
+          <input type="text" id="pending-search" class="uc" placeholder="SEARCH INV / ODO NO...">
           <ul class="record-list" id="pending-list"></ul>
           <div class="empty-note" id="pending-empty" style="display:none;">Select a department above to view pending invoices.</div>
         </div>
@@ -712,6 +714,7 @@ document.getElementById("btn-submit-new").addEventListener("click", async () => 
    PENDING LIST
    ========================================================= */
 let currentPendingDept = null;
+let pendingSearchTerm = "";
 let allPendingRows = [];
 
 document.querySelectorAll("#pending-dept-row button").forEach(btn => {
@@ -721,6 +724,11 @@ document.querySelectorAll("#pending-dept-row button").forEach(btn => {
     currentPendingDept = btn.dataset.dept;
     renderPendingList();
   });
+});
+
+document.getElementById("pending-search").addEventListener("input", (e) => {
+  pendingSearchTerm = e.target.value.trim();
+  renderPendingList();
 });
 
 async function loadPending(){
@@ -760,17 +768,25 @@ function renderPendingList(){
   const empty = document.getElementById("pending-empty");
   list.innerHTML = "";
 
-  if(!currentPendingDept){
+  if(!currentPendingDept && !pendingSearchTerm){
     empty.style.display = "block";
-    empty.textContent = "Select a department above to view pending invoices.";
+    empty.textContent = "Select a department above, or search by Inv / ODO No.";
     list.style.display = "none";
     return;
   }
 
-  const filtered = allPendingRows.filter(r => r.main_department === currentPendingDept);
+  let filtered = allPendingRows;
+  if(currentPendingDept){
+    filtered = filtered.filter(r => r.main_department === currentPendingDept);
+  }
+  if(pendingSearchTerm){
+    const term = pendingSearchTerm.toUpperCase();
+    filtered = filtered.filter(r => (r.inv_odo_no || "").toUpperCase().includes(term));
+  }
+
   if(filtered.length === 0){
     empty.style.display = "block";
-    empty.textContent = "No pending invoices for this department.";
+    empty.textContent = "No pending invoices match your search.";
     list.style.display = "none";
     return;
   }
