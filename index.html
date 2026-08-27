@@ -679,12 +679,17 @@ const SOFTLINE_SUB_DEPTS = [
   "BABY / INFANT","BABY ACCESSORIES","CHILDREN"
 ];
 
-function populateSubDeptSelect(selectEl, options){
+function populateSubDeptSelect(selectEl, options, allLabel){
   const list = options || SUB_DEPT_OPTIONS;
   selectEl.innerHTML = "";
   const blank = document.createElement("option");
   blank.value = ""; blank.textContent = "-- SELECT --";
   selectEl.appendChild(blank);
+  if(allLabel){
+    const allOpt = document.createElement("option");
+    allOpt.value = "ALL"; allOpt.textContent = allLabel;
+    selectEl.appendChild(allOpt);
+  }
   list.forEach(opt => {
     const o = document.createElement("option");
     o.value = opt; o.textContent = opt;
@@ -1501,7 +1506,7 @@ document.querySelectorAll("#summary-dept-row button").forEach(btn => {
     currentSummaryDept = btn.dataset.dept;
     const subSel = document.getElementById("summary-sub-dept");
     const options = currentSummaryDept === "HARDLINE" ? HARDLINE_SUB_DEPTS : SOFTLINE_SUB_DEPTS;
-    populateSubDeptSelect(subSel, options);
+    populateSubDeptSelect(subSel, options, `ALL ${currentSummaryDept} SUB-DEPARTMENTS`);
     subSel.disabled = false;
   });
 });
@@ -1531,11 +1536,13 @@ document.getElementById("btn-generate-summary").addEventListener("click", async 
 
   msg.className = "msg"; msg.textContent = "Generating summary...";
 
+  const subDeptFilter = subDept === "ALL" ? "" : subDept;
+
   let resp;
   try{
     resp = await callGas("listSummary", {
       startDate: start, endDate: end,
-      mainDepartment: currentSummaryDept, subDepartment: subDept
+      mainDepartment: currentSummaryDept, subDepartment: subDeptFilter
     });
   } catch(err){
     msg.className = "msg error"; msg.textContent = "Error: " + err.message; return;
@@ -1553,8 +1560,9 @@ function renderSummary(rows, start, end, mainDept, subDept){
   const tbody = document.getElementById("summary-tbody");
   tbody.innerHTML = "";
 
+  const subDeptLabel = subDept === "ALL" ? "All Sub-Departments" : subDept;
   document.getElementById("summary-range-label").textContent =
-    `${mainDept} / ${subDept}  ·  ${start} to ${end}  ·  ${rows.length} record(s)  ·  generated ${new Date().toLocaleString()}`;
+    `${mainDept} / ${subDeptLabel}  ·  ${start} to ${end}  ·  ${rows.length} record(s)  ·  generated ${new Date().toLocaleString()}`;
 
   let grandTotal = 0;
 
