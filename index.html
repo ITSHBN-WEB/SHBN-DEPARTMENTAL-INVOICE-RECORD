@@ -450,7 +450,6 @@
         <div class="dept-row" id="summary-dept-row" style="margin-top:14px;">
           <button data-dept="HARDLINE">Hardline</button>
           <button data-dept="SOFTLINE">Softline</button>
-          <button data-dept="EG">EG</button>
         </div>
         <div>
           <label>Sub-Department</label>
@@ -669,12 +668,24 @@ const SUB_DEPT_OPTIONS = [
   "BABY ACCESSORIES","CHILDREN"
 ];
 
-function populateSubDeptSelect(selectEl){
+// Used only by the Invoice Summary tab's Sub-Department filter, which
+// narrows the list based on the chosen Main Department.
+const HARDLINE_SUB_DEPTS = [
+  "BATTERY","HOUSEHOLD","ELECTRICAL","HARDWARE","CAR ACCESSORIES",
+  "STATIONERY","SPORTS","TOYS","GIFT","FESTIVAL","LINEN FURNISHING","LUGGAGE"
+];
+const SOFTLINE_SUB_DEPTS = [
+  "SLIPPERS","BACK TO SCHOOL","LADIES","GENTS","GENTS' FOOTWEAR",
+  "BABY / INFANT","BABY ACCESSORIES","CHILDREN"
+];
+
+function populateSubDeptSelect(selectEl, options){
+  const list = options || SUB_DEPT_OPTIONS;
   selectEl.innerHTML = "";
   const blank = document.createElement("option");
   blank.value = ""; blank.textContent = "-- SELECT --";
   selectEl.appendChild(blank);
-  SUB_DEPT_OPTIONS.forEach(opt => {
+  list.forEach(opt => {
     const o = document.createElement("option");
     o.value = opt; o.textContent = opt;
     selectEl.appendChild(o);
@@ -1489,8 +1500,9 @@ document.querySelectorAll("#summary-dept-row button").forEach(btn => {
     btn.classList.add("active");
     currentSummaryDept = btn.dataset.dept;
     const subSel = document.getElementById("summary-sub-dept");
+    const options = currentSummaryDept === "HARDLINE" ? HARDLINE_SUB_DEPTS : SOFTLINE_SUB_DEPTS;
+    populateSubDeptSelect(subSel, options);
     subSel.disabled = false;
-    subSel.value = "";
   });
 });
 
