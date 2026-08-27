@@ -289,22 +289,30 @@
 
   .report-controls{ display:flex; gap:14px; align-items:flex-end; flex-wrap:wrap; }
   .report-controls > div{ min-width:150px; }
-  #report-print-area table{ width:100%; border-collapse:collapse; font-size:0.76rem; }
-  #report-print-area th{
+  .printable-area table{ width:100%; border-collapse:collapse; font-size:0.76rem; }
+  .printable-area th{
     text-align:left; padding:7px 5px; border-bottom:2px solid var(--leather);
     font-family:'Inter',sans-serif; text-transform:uppercase; font-size:0.68rem; letter-spacing:0.04em; color:var(--leather);
   }
-  #report-print-area td{ padding:6px 5px; border-bottom:1px dashed var(--paper-line); font-family:'JetBrains Mono',monospace; }
-  #report-print-area .status-pending{ color:var(--brass); font-weight:700; }
-  #report-print-area .status-completed{ color:var(--stamp-green); font-weight:700; }
-  #report-heading{ text-align:center; margin-bottom:16px; }
-  #report-heading h3{ font-family:'Fraunces',serif; color:var(--leather); margin:0 0 4px; font-size:1.2rem; }
-  #report-range-label{ font-family:'JetBrains Mono',monospace; font-size:0.75rem; color:var(--muted); }
+  .printable-area td{ padding:6px 5px; border-bottom:1px dashed var(--paper-line); font-family:'JetBrains Mono',monospace; }
+  .printable-area .status-pending{ color:var(--brass); font-weight:700; }
+  .printable-area .status-completed{ color:var(--stamp-green); font-weight:700; }
+  .printable-area .report-heading{ text-align:center; margin-bottom:16px; }
+  .printable-area .report-heading h3{ font-family:'Fraunces',serif; color:var(--leather); margin:0 0 4px; font-size:1.2rem; }
+  .printable-area .report-range-label{ font-family:'JetBrains Mono',monospace; font-size:0.75rem; color:var(--muted); }
+  .grand-total{
+    margin-top:16px; padding-top:14px; border-top:2px solid var(--leather);
+    text-align:right; font-family:'Fraunces',serif; font-size:1.1rem; color:var(--leather); font-weight:600;
+  }
+  .grand-total span{ font-family:'JetBrains Mono',monospace; margin-left:8px; }
+
+  .list-toggle-row{ display:flex; justify-content:flex-end; margin-bottom:8px; }
+  .brand-input{ display:none; }
 
   @media print{
     body *{ visibility:hidden; }
-    #report-print-area, #report-print-area *{ visibility:visible; }
-    #report-print-area{ position:absolute; top:0; left:0; width:100%; }
+    .printable-area, .printable-area *{ visibility:visible; }
+    .printable-area{ position:absolute; top:0; left:0; width:100%; }
     .no-print{ display:none !important; }
   }
 </style>
@@ -320,6 +328,7 @@
   <nav class="tabs">
     <button data-tab="new" class="active">New Entry</button>
     <button data-tab="pending">Pending Invoice</button>
+    <button data-tab="summary">Invoice Summary</button>
     <button data-tab="admin">Admin</button>
   </nav>
 
@@ -341,11 +350,13 @@
               <option value="HARDLINE">HARDLINE</option>
               <option value="SOFTLINE">SOFTLINE</option>
               <option value="EG">EG</option>
+              <option value="CONSIGNMENT">CONSIGNMENT</option>
             </select>
           </div>
           <div>
-            <label>Sub-Department <span class="req">*</span></label>
-            <input type="text" id="f-sub-dept" class="uc" disabled>
+            <label>Sub-Department / Brand <span class="req">*</span></label>
+            <select id="f-sub-dept-select" disabled></select>
+            <input type="text" id="f-sub-dept-input" class="uc brand-input" placeholder="ENTER BRAND NAME">
           </div>
           <div>
             <label>Inv / ODO No <span class="req">*</span></label>
@@ -354,6 +365,10 @@
           <div>
             <label>PO No <span class="req">*</span></label>
             <input type="text" id="f-po" class="uc">
+          </div>
+          <div>
+            <label>Date of Received <span class="req">*</span></label>
+            <input type="date" id="f-date-received">
           </div>
           <div>
             <label>Total Carton</label>
@@ -390,6 +405,7 @@
             <button data-dept="HARDLINE">Hardline</button>
             <button data-dept="SOFTLINE">Softline</button>
             <button data-dept="EG">EG</button>
+            <button data-dept="CONSIGNMENT">Consignment</button>
           </div>
           <input type="text" id="pending-search" class="uc" placeholder="SEARCH INV / ODO NO...">
           <ul class="record-list" id="pending-list"></ul>
@@ -404,6 +420,7 @@
             <button data-dept="HARDLINE">Hardline</button>
             <button data-dept="SOFTLINE">Softline</button>
             <button data-dept="EG">EG</button>
+            <button data-dept="CONSIGNMENT">Consignment</button>
           </div>
           <div class="bucket-row">
             <button data-bucket="10" class="active">Last 10 days</button>
@@ -412,6 +429,57 @@
           </div>
           <ul class="record-list" id="completed-list"></ul>
           <div class="empty-note" id="completed-empty" style="display:none;">Select a department above to view completed invoices.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- INVOICE SUMMARY -->
+    <section id="panel-summary" class="panel">
+      <div class="card no-print">
+        <h2 class="section-title">Invoice Summary</h2>
+        <div class="report-controls">
+          <div>
+            <label>From Date</label>
+            <input type="date" id="summary-start">
+          </div>
+          <div>
+            <label>To Date</label>
+            <input type="date" id="summary-end">
+          </div>
+        </div>
+        <div class="dept-row" id="summary-dept-row" style="margin-top:14px;">
+          <button data-dept="HARDLINE">Hardline</button>
+          <button data-dept="SOFTLINE">Softline</button>
+          <button data-dept="EG">EG</button>
+        </div>
+        <div>
+          <label>Sub-Department</label>
+          <select id="summary-sub-dept" disabled style="max-width:280px;"></select>
+        </div>
+        <div class="actions-row">
+          <button class="btn btn-primary" id="btn-generate-summary">Generate Summary</button>
+        </div>
+        <div class="msg" id="summary-msg"></div>
+      </div>
+
+      <div class="card printable-area" id="summary-print-area" style="display:none;">
+        <div class="report-heading">
+          <h3>SHBN Invoice Summary</h3>
+          <div class="report-range-label" id="summary-range-label"></div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th><th>Supplier</th><th>Main Dept</th><th>Sub Dept</th>
+              <th>Inv/ODO No</th><th>PO No</th><th>Carton</th><th>Amount</th>
+              <th>Record By</th><th>Key In By</th><th>Date Key In</th><th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="summary-tbody"></tbody>
+        </table>
+        <div class="grand-total">Grand Total Amount: <span id="summary-grand-total">-</span></div>
+        <div class="actions-row no-print" style="margin-top:16px;">
+          <button class="btn btn-ghost" id="btn-print-summary">Print Summary</button>
         </div>
       </div>
     </section>
@@ -431,18 +499,42 @@
       <div id="admin-panel" style="display:none;">
         <div class="card">
           <h2 class="section-title">Admin &middot; Pending Records</h2>
-          <div id="admin-pending-list"></div>
-          <div class="empty-note" id="admin-pending-empty" style="display:none;">No pending invoices.</div>
+          <div class="dept-row" id="admin-pending-dept-row">
+            <button data-dept="HARDLINE">Hardline</button>
+            <button data-dept="SOFTLINE">Softline</button>
+            <button data-dept="EG">EG</button>
+            <button data-dept="CONSIGNMENT">Consignment</button>
+          </div>
+          <input type="text" id="admin-pending-search" class="uc" placeholder="SEARCH INV / ODO NO...">
+          <div class="list-toggle-row">
+            <button class="btn btn-ghost btn-small" id="btn-toggle-admin-pending">Hide List</button>
+          </div>
+          <div id="admin-pending-list-wrap">
+            <div id="admin-pending-list"></div>
+            <div class="empty-note" id="admin-pending-empty" style="display:none;">Select a department above, or search by Inv / ODO No.</div>
+          </div>
         </div>
         <div class="card">
           <h2 class="section-title">Admin &middot; Completed Records</h2>
+          <div class="dept-row" id="admin-completed-dept-row">
+            <button data-dept="HARDLINE">Hardline</button>
+            <button data-dept="SOFTLINE">Softline</button>
+            <button data-dept="EG">EG</button>
+            <button data-dept="CONSIGNMENT">Consignment</button>
+          </div>
+          <input type="text" id="admin-completed-search" class="uc" placeholder="SEARCH INV / ODO NO...">
           <div class="bucket-row">
             <button data-abucket="10" class="active">Last 10 days</button>
             <button data-abucket="30">Last 30 days</button>
             <button data-abucket="60">60 days+</button>
           </div>
-          <div id="admin-completed-list"></div>
-          <div class="empty-note" id="admin-completed-empty" style="display:none;">No completed invoices in this range.</div>
+          <div class="list-toggle-row">
+            <button class="btn btn-ghost btn-small" id="btn-toggle-admin-completed">Hide List</button>
+          </div>
+          <div id="admin-completed-list-wrap">
+            <div id="admin-completed-list"></div>
+            <div class="empty-note" id="admin-completed-empty" style="display:none;">Select a department above, or search by Inv / ODO No.</div>
+          </div>
         </div>
 
         <div class="card no-print">
@@ -463,10 +555,10 @@
           <div class="msg" id="report-msg"></div>
         </div>
 
-        <div class="card" id="report-print-area" style="display:none;">
-          <div id="report-heading">
+        <div class="card printable-area" id="report-print-area" style="display:none;">
+          <div class="report-heading">
             <h3>SHBN Departmental Invoice Report</h3>
-            <div id="report-range-label"></div>
+            <div class="report-range-label" id="report-range-label"></div>
           </div>
           <table>
             <thead>
@@ -507,13 +599,18 @@
           <option value="HARDLINE">HARDLINE</option>
           <option value="SOFTLINE">SOFTLINE</option>
           <option value="EG">EG</option>
+          <option value="CONSIGNMENT">CONSIGNMENT</option>
         </select>
       </div>
-      <div><label>Sub-Department</label><input type="text" id="d-sub-dept" class="uc" readonly></div>
+      <div><label>Sub-Department / Brand</label>
+        <select id="d-sub-dept-select" disabled></select>
+        <input type="text" id="d-sub-dept-input" class="uc brand-input" readonly>
+      </div>
       <div><label>Inv / ODO No</label><input type="text" id="d-inv" class="uc" readonly></div>
       <div><label>PO No</label><input type="text" id="d-po" class="uc" readonly></div>
+      <div><label>Date of Received</label><input type="date" id="d-date-received" readonly></div>
       <div><label>Total Carton</label><input type="number" step="any" id="d-carton" readonly></div>
-      <div><label>Total Amount</label><input type="number" step="any" id="d-amount" readonly></div>
+      <div><label>Total Amount</label><input type="text" id="d-amount" readonly></div>
       <div><label>Record By</label><input type="text" id="d-recordby" class="uc" readonly></div>
       <div><label>Key In By <span class="req">*</span></label><input type="text" id="d-keyinby" class="uc"></div>
     </div>
@@ -565,6 +662,28 @@ async function callGas(action, payload = {}){
 /* =========================================================
    Helpers
    ========================================================= */
+const SUB_DEPT_OPTIONS = [
+  "BATTERY","HOUSEHOLD","ELECTRICAL","HARDWARE","CAR ACCESSORIES","STATIONERY",
+  "SPORTS","TOYS","GIFT","FESTIVAL","LINEN FURNISHING","LUGGAGE","SLIPPERS",
+  "BACK TO SCHOOL","LADIES","GENTS","GENTS' FOOTWEAR","BABY / INFANT",
+  "BABY ACCESSORIES","CHILDREN"
+];
+
+function populateSubDeptSelect(selectEl){
+  selectEl.innerHTML = "";
+  const blank = document.createElement("option");
+  blank.value = ""; blank.textContent = "-- SELECT --";
+  selectEl.appendChild(blank);
+  SUB_DEPT_OPTIONS.forEach(opt => {
+    const o = document.createElement("option");
+    o.value = opt; o.textContent = opt;
+    selectEl.appendChild(o);
+  });
+}
+populateSubDeptSelect(document.getElementById("f-sub-dept-select"));
+populateSubDeptSelect(document.getElementById("d-sub-dept-select"));
+populateSubDeptSelect(document.getElementById("summary-sub-dept"));
+
 function daysAgo(iso){
   if(!iso) return Infinity;
   const diff = Date.now() - new Date(iso).getTime();
@@ -583,17 +702,42 @@ function escapeHtml(s){
     "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
   }[m]));
 }
+// Formats a number as "4,115.00" / "15,000.00". Returns "-" for blank/invalid.
+function formatMoney(v){
+  if(v === "" || v === null || v === undefined || isNaN(Number(v))) return "-";
+  return Number(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+// Converts a stored "dd.MM.yyyy" string (Date of Received) into the
+// "yyyy-mm-dd" format an <input type="date"> needs for its value.
+function ddmmyyyyToIso(str){
+  if(!str) return "";
+  const m = String(str).match(/^(\d{2})\.(\d{2})\.(\d{4})/);
+  if(!m) return "";
+  return `${m[3]}-${m[2]}-${m[1]}`;
+}
 
-// Main Department must be selected before Sub-Department becomes editable (New Entry form)
+// Main Department must be selected before Sub-Department becomes editable
+// (New Entry form). Consignment swaps the fixed dropdown for a free-text
+// brand field, since consignment brands aren't part of the fixed list.
 document.getElementById("f-main-dept").addEventListener("change", (e) => {
-  const sub = document.getElementById("f-sub-dept");
-  if(e.target.value){
-    sub.disabled = false;
+  const sel = document.getElementById("f-sub-dept-select");
+  const inp = document.getElementById("f-sub-dept-input");
+  if(e.target.value === "CONSIGNMENT"){
+    sel.style.display = "none"; sel.disabled = true; sel.value = "";
+    inp.classList.add("brand-input"); inp.style.display = ""; inp.value = "";
+  } else if(e.target.value){
+    sel.style.display = ""; sel.disabled = false;
+    inp.classList.remove("brand-input"); inp.style.display = "none"; inp.value = "";
   } else {
-    sub.disabled = true;
-    sub.value = "";
+    sel.style.display = ""; sel.disabled = true; sel.value = "";
+    inp.classList.remove("brand-input"); inp.style.display = "none"; inp.value = "";
   }
 });
+function getNewEntrySubDept(){
+  const mainDept = document.getElementById("f-main-dept").value;
+  if(mainDept === "CONSIGNMENT") return document.getElementById("f-sub-dept-input").value.trim();
+  return document.getElementById("f-sub-dept-select").value;
+}
 
 // force-uppercase on any input carrying the .uc class
 document.addEventListener("input", (e) => {
@@ -649,7 +793,7 @@ document.querySelectorAll(".bucket-row button[data-abucket]").forEach(btn => {
     document.querySelectorAll(".bucket-row button[data-abucket]").forEach(b=>b.classList.remove("active"));
     btn.classList.add("active");
     currentAdminBucket = btn.dataset.abucket;
-    loadAdminCompleted();
+    renderAdminCompletedList();
   });
 });
 
@@ -659,17 +803,18 @@ document.querySelectorAll(".bucket-row button[data-abucket]").forEach(btn => {
 document.getElementById("btn-submit-new").addEventListener("click", async () => {
   const supplier = document.getElementById("f-supplier").value.trim();
   const mainDept = document.getElementById("f-main-dept").value;
-  const subDept = document.getElementById("f-sub-dept").value.trim();
+  const subDept = getNewEntrySubDept();
   const inv = document.getElementById("f-inv").value.trim();
   const po = document.getElementById("f-po").value.trim();
+  const dateReceived = document.getElementById("f-date-received").value;
   const carton = document.getElementById("f-carton").value;
   const amount = document.getElementById("f-amount").value;
   const recordby = document.getElementById("f-recordby").value.trim();
   const msg = document.getElementById("new-msg");
 
-  if(!supplier || !mainDept || !subDept || !inv || !po || !recordby){
+  if(!supplier || !mainDept || !subDept || !inv || !po || !dateReceived || !recordby){
     msg.className = "msg error";
-    msg.textContent = "Please fill in all required fields (Supplier, Main Department, Sub-Department, Inv/ODO No, PO No, Record By).";
+    msg.textContent = "Please fill in all required fields (Supplier, Main Department, Sub-Department/Brand, Inv/ODO No, PO No, Date of Received, Record By).";
     return;
   }
 
@@ -679,6 +824,7 @@ document.getElementById("btn-submit-new").addEventListener("click", async () => 
     sub_department: subDept,
     inv_odo_no: inv,
     po_no: po,
+    date_received: dateReceived,
     total_carton: carton === "" ? null : Number(carton),
     total_amount: amount === "" ? null : Number(amount),
     record_by: recordby
@@ -702,12 +848,15 @@ document.getElementById("btn-submit-new").addEventListener("click", async () => 
   }
   msg.className = "msg ok";
   msg.textContent = "Entry submitted successfully.";
-  ["f-supplier","f-inv","f-po","f-carton","f-amount","f-recordby"].forEach(id=>{
+  ["f-supplier","f-inv","f-po","f-date-received","f-carton","f-amount","f-recordby"].forEach(id=>{
     document.getElementById(id).value = "";
   });
   document.getElementById("f-main-dept").value = "";
-  document.getElementById("f-sub-dept").value = "";
-  document.getElementById("f-sub-dept").disabled = true;
+  document.getElementById("f-sub-dept-select").value = "";
+  document.getElementById("f-sub-dept-select").disabled = true;
+  document.getElementById("f-sub-dept-select").style.display = "";
+  document.getElementById("f-sub-dept-input").value = "";
+  document.getElementById("f-sub-dept-input").style.display = "none";
 });
 
 /* =========================================================
@@ -748,7 +897,7 @@ async function loadPending(){
 
 function renderPendingNotice(){
   const notice = document.getElementById("pending-notice");
-  const depts = ["HARDLINE","SOFTLINE","EG"];
+  const depts = ["HARDLINE","SOFTLINE","EG","CONSIGNMENT"];
   const parts = depts
     .map(d => ({ d, count: allPendingRows.filter(r => r.main_department === d).length }))
     .filter(x => x.count > 0)
@@ -883,24 +1032,45 @@ function renderCompletedList(){
 let activeRow = null;
 let editMode = false;
 
+function setDetailSubDeptField(mainDept, subDeptValue){
+  const sel = document.getElementById("d-sub-dept-select");
+  const inp = document.getElementById("d-sub-dept-input");
+  if(mainDept === "CONSIGNMENT"){
+    sel.style.display = "none";
+    inp.style.display = "";
+    inp.value = subDeptValue || "";
+  } else {
+    sel.style.display = "";
+    inp.style.display = "none";
+    sel.value = subDeptValue || "";
+  }
+}
+
 function openDetail(row, readOnlyAll){
   activeRow = row;
   editMode = false;
   document.getElementById("d-date").value = row.date || "";
   document.getElementById("d-supplier").value = row.supplier || "";
   document.getElementById("d-main-dept").value = row.main_department || "";
-  document.getElementById("d-sub-dept").value = row.sub_department || "";
+  setDetailSubDeptField(row.main_department, row.sub_department);
   document.getElementById("d-inv").value = row.inv_odo_no || "";
   document.getElementById("d-po").value = row.po_no || "";
+  document.getElementById("d-date-received").value = ddmmyyyyToIso(row.date_received);
   document.getElementById("d-carton").value = row.total_carton ?? "";
-  document.getElementById("d-amount").value = row.total_amount ?? "";
+  const amountEl = document.getElementById("d-amount");
+  amountEl.dataset.raw = row.total_amount ?? "";
+  amountEl.type = "text";
+  amountEl.value = formatMoney(row.total_amount);
   document.getElementById("d-recordby").value = row.record_by || "";
   document.getElementById("d-keyinby").value = row.key_in_by || "";
   document.getElementById("detail-msg").textContent = "";
 
-  const editableTextIds = ["d-supplier","d-sub-dept","d-inv","d-po","d-carton","d-amount","d-recordby"];
+  const editableTextIds = ["d-supplier","d-inv","d-po","d-carton","d-recordby"];
   editableTextIds.forEach(id => document.getElementById(id).readOnly = true);
   document.getElementById("d-main-dept").disabled = true;
+  document.getElementById("d-sub-dept-select").disabled = true;
+  document.getElementById("d-sub-dept-input").readOnly = true;
+  document.getElementById("d-date-received").readOnly = true;
 
   const isCompletedView = row.status === "COMPLETED";
   document.getElementById("btn-complete").style.display = isCompletedView ? "none" : "";
@@ -915,11 +1085,36 @@ document.getElementById("btn-close-detail").addEventListener("click", () => {
   activeRow = null;
 });
 
+// If the Main Department is changed while editing, swap the sub-department
+// control to match (dropdown for the fixed 3, free-text for Consignment).
+document.getElementById("d-main-dept").addEventListener("change", (e) => {
+  if(!editMode) return;
+  setDetailSubDeptField(e.target.value, "");
+  document.getElementById("d-sub-dept-select").disabled = (e.target.value === "CONSIGNMENT");
+  document.getElementById("d-sub-dept-input").readOnly = (e.target.value !== "CONSIGNMENT");
+});
+
 document.getElementById("btn-edit-toggle").addEventListener("click", () => {
   editMode = !editMode;
-  const editableTextIds = ["d-supplier","d-sub-dept","d-inv","d-po","d-carton","d-amount","d-recordby"];
+  const editableTextIds = ["d-supplier","d-inv","d-po","d-carton","d-recordby"];
   editableTextIds.forEach(id => document.getElementById(id).readOnly = !editMode);
   document.getElementById("d-main-dept").disabled = !editMode;
+  document.getElementById("d-date-received").readOnly = !editMode;
+
+  const mainDeptVal = document.getElementById("d-main-dept").value;
+  document.getElementById("d-sub-dept-select").disabled = !editMode || (mainDeptVal === "CONSIGNMENT");
+  document.getElementById("d-sub-dept-input").readOnly = !editMode || (mainDeptVal !== "CONSIGNMENT");
+
+  const amountEl = document.getElementById("d-amount");
+  if(editMode){
+    amountEl.type = "number";
+    amountEl.step = "any";
+    amountEl.value = amountEl.dataset.raw || "";
+  } else {
+    amountEl.type = "text";
+    amountEl.value = formatMoney(amountEl.dataset.raw);
+  }
+
   document.getElementById("btn-save-changes").style.display = editMode ? "" : "none";
 });
 
@@ -928,19 +1123,23 @@ document.getElementById("btn-save-changes").addEventListener("click", async () =
   const msg = document.getElementById("detail-msg");
   const supplier = document.getElementById("d-supplier").value.trim();
   const mainDept = document.getElementById("d-main-dept").value;
-  const subDept = document.getElementById("d-sub-dept").value.trim();
+  const subDept = mainDept === "CONSIGNMENT"
+    ? document.getElementById("d-sub-dept-input").value.trim()
+    : document.getElementById("d-sub-dept-select").value;
   const inv = document.getElementById("d-inv").value.trim();
   const po = document.getElementById("d-po").value.trim();
+  const dateReceived = document.getElementById("d-date-received").value;
   const recordby = document.getElementById("d-recordby").value.trim();
 
-  if(!supplier || !mainDept || !subDept || !inv || !po || !recordby){
+  if(!supplier || !mainDept || !subDept || !inv || !po || !dateReceived || !recordby){
     msg.className = "msg error";
-    msg.textContent = "Supplier, Main Department, Sub-Department, Inv/ODO No, PO No and Record By cannot be empty.";
+    msg.textContent = "Supplier, Main Department, Sub-Department/Brand, Inv/ODO No, PO No, Date of Received and Record By cannot be empty.";
     return;
   }
 
   const carton = document.getElementById("d-carton").value;
-  const amount = document.getElementById("d-amount").value;
+  const amountEl = document.getElementById("d-amount");
+  const amount = amountEl.value;
 
   msg.className = "msg";
   msg.textContent = "Saving...";
@@ -955,6 +1154,7 @@ document.getElementById("btn-save-changes").addEventListener("click", async () =
       sub_department: subDept,
       inv_odo_no: inv,
       po_no: po,
+      date_received: dateReceived,
       total_carton: carton === "" ? null : Number(carton),
       total_amount: amount === "" ? null : Number(amount),
       record_by: recordby
@@ -967,9 +1167,15 @@ document.getElementById("btn-save-changes").addEventListener("click", async () =
   msg.className = "msg ok";
   msg.textContent = "Changes saved.";
   editMode = false;
-  const editableTextIds = ["d-supplier","d-sub-dept","d-inv","d-po","d-carton","d-amount","d-recordby"];
+  const editableTextIds = ["d-supplier","d-inv","d-po","d-carton","d-recordby"];
   editableTextIds.forEach(id => document.getElementById(id).readOnly = true);
   document.getElementById("d-main-dept").disabled = true;
+  document.getElementById("d-date-received").readOnly = true;
+  document.getElementById("d-sub-dept-select").disabled = true;
+  document.getElementById("d-sub-dept-input").readOnly = true;
+  amountEl.dataset.raw = amount === "" ? "" : Number(amount);
+  amountEl.type = "text";
+  amountEl.value = formatMoney(amountEl.dataset.raw);
   document.getElementById("btn-save-changes").style.display = "none";
   loadPending();
 });
@@ -1019,33 +1225,130 @@ document.getElementById("btn-admin-login").addEventListener("click", () => {
   }
 });
 
+let currentAdminPendingDept = null;
+let adminPendingSearchTerm = "";
+let allAdminPendingRows = [];
+
+let currentAdminCompletedDept = null;
+let adminCompletedSearchTerm = "";
+let allAdminCompletedRows = [];
+
+document.querySelectorAll("#admin-pending-dept-row button").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("#admin-pending-dept-row button").forEach(b=>b.classList.remove("active"));
+    btn.classList.add("active");
+    currentAdminPendingDept = btn.dataset.dept;
+    renderAdminPendingList();
+  });
+});
+document.getElementById("admin-pending-search").addEventListener("input", (e) => {
+  adminPendingSearchTerm = e.target.value.trim();
+  renderAdminPendingList();
+});
+
+document.querySelectorAll("#admin-completed-dept-row button").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("#admin-completed-dept-row button").forEach(b=>b.classList.remove("active"));
+    btn.classList.add("active");
+    currentAdminCompletedDept = btn.dataset.dept;
+    renderAdminCompletedList();
+  });
+});
+document.getElementById("admin-completed-search").addEventListener("input", (e) => {
+  adminCompletedSearchTerm = e.target.value.trim();
+  renderAdminCompletedList();
+});
+
+document.getElementById("btn-toggle-admin-pending").addEventListener("click", (e) => {
+  const wrap = document.getElementById("admin-pending-list-wrap");
+  const hidden = wrap.style.display === "none";
+  wrap.style.display = hidden ? "" : "none";
+  e.target.textContent = hidden ? "Hide List" : "Show List";
+});
+document.getElementById("btn-toggle-admin-completed").addEventListener("click", (e) => {
+  const wrap = document.getElementById("admin-completed-list-wrap");
+  const hidden = wrap.style.display === "none";
+  wrap.style.display = hidden ? "" : "none";
+  e.target.textContent = hidden ? "Hide List" : "Show List";
+});
+
 async function loadAdminPending(){
-  const box = document.getElementById("admin-pending-list");
   const empty = document.getElementById("admin-pending-empty");
-  box.innerHTML = "";
   let resp;
   try{
     resp = await callGas("listPending");
   } catch(err){ empty.style.display="block"; empty.textContent = "Error: "+err.message; return; }
   if(!resp.success){ empty.style.display="block"; empty.textContent = "Error: "+(resp.error||""); return; }
-  const data = resp.data || [];
-  if(data.length===0){ empty.style.display="block"; return; }
-  empty.style.display="none";
-  data.forEach(row => box.appendChild(renderAdminRow(row)));
+  allAdminPendingRows = resp.data || [];
+  renderAdminPendingList();
+}
+
+function renderAdminPendingList(){
+  const box = document.getElementById("admin-pending-list");
+  const empty = document.getElementById("admin-pending-empty");
+  box.innerHTML = "";
+
+  if(!currentAdminPendingDept && !adminPendingSearchTerm){
+    empty.style.display = "block";
+    empty.textContent = "Select a department above, or search by Inv / ODO No.";
+    return;
+  }
+
+  let filtered = allAdminPendingRows;
+  if(currentAdminPendingDept){
+    filtered = filtered.filter(r => r.main_department === currentAdminPendingDept);
+  }
+  if(adminPendingSearchTerm){
+    const term = adminPendingSearchTerm.toUpperCase();
+    filtered = filtered.filter(r => String(r.inv_odo_no ?? "").toUpperCase().includes(term));
+  }
+
+  if(filtered.length === 0){
+    empty.style.display = "block";
+    empty.textContent = "No pending invoices match your filters.";
+    return;
+  }
+  empty.style.display = "none";
+  filtered.forEach(row => box.appendChild(renderAdminRow(row)));
 }
 
 async function loadAdminCompleted(){
-  const box = document.getElementById("admin-completed-list");
   const empty = document.getElementById("admin-completed-empty");
-  box.innerHTML = "";
   let resp;
   try{
     resp = await callGas("listCompleted", { monthsBack: 4 });
   } catch(err){ empty.style.display="block"; empty.textContent = "Error: "+err.message; return; }
   if(!resp.success){ empty.style.display="block"; empty.textContent = "Error: "+(resp.error||""); return; }
-  const filtered = (resp.data||[]).filter(r => within90(r.completed_at) && bucketMatch(r.completed_at, currentAdminBucket));
-  if(filtered.length===0){ empty.style.display="block"; return; }
-  empty.style.display="none";
+  allAdminCompletedRows = resp.data || [];
+  renderAdminCompletedList();
+}
+
+function renderAdminCompletedList(){
+  const box = document.getElementById("admin-completed-list");
+  const empty = document.getElementById("admin-completed-empty");
+  box.innerHTML = "";
+
+  if(!currentAdminCompletedDept && !adminCompletedSearchTerm){
+    empty.style.display = "block";
+    empty.textContent = "Select a department above, or search by Inv / ODO No.";
+    return;
+  }
+
+  let filtered = allAdminCompletedRows.filter(r => within90(r.completed_at) && bucketMatch(r.completed_at, currentAdminBucket));
+  if(currentAdminCompletedDept){
+    filtered = filtered.filter(r => r.main_department === currentAdminCompletedDept);
+  }
+  if(adminCompletedSearchTerm){
+    const term = adminCompletedSearchTerm.toUpperCase();
+    filtered = filtered.filter(r => String(r.inv_odo_no ?? "").toUpperCase().includes(term));
+  }
+
+  if(filtered.length === 0){
+    empty.style.display = "block";
+    empty.textContent = "No completed invoices match your filters.";
+    return;
+  }
+  empty.style.display = "none";
   filtered.forEach(row => box.appendChild(renderAdminRow(row)));
 }
 
@@ -1057,7 +1360,10 @@ function renderAdminRow(row){
       <div class="inv-no">${escapeHtml(row.inv_odo_no)}</div>
       <div>${escapeHtml(row.supplier)} &middot; ${escapeHtml(row.main_department)} / ${escapeHtml(row.sub_department)} &middot; ${escapeHtml(row.date)}</div>
     </div>
-    <button class="btn btn-danger btn-small">Delete</button>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <span class="stamp ${row.status === 'COMPLETED' ? 'completed' : 'pending'}">${escapeHtml(row.status)}</span>
+      <button class="btn btn-danger btn-small">Delete</button>
+    </div>
   `;
   div.querySelector("button").addEventListener("click", () => openDeleteConfirm(row));
   return div;
@@ -1155,7 +1461,7 @@ function renderReport(rows, start, end){
         <td>${escapeHtml(row.inv_odo_no)}</td>
         <td>${escapeHtml(row.po_no)}</td>
         <td>${row.total_carton === "" || row.total_carton == null ? "-" : row.total_carton}</td>
-        <td>${row.total_amount === "" || row.total_amount == null ? "-" : row.total_amount}</td>
+        <td>${formatMoney(row.total_amount)}</td>
         <td>${escapeHtml(row.record_by)}</td>
         <td>${escapeHtml(row.key_in_by) || "-"}</td>
         <td>${escapeHtml(row.date_key_in) || "-"}</td>
@@ -1169,6 +1475,109 @@ function renderReport(rows, start, end){
 }
 
 document.getElementById("btn-print-report").addEventListener("click", () => {
+  window.print();
+});
+
+/* =========================================================
+   INVOICE SUMMARY
+   ========================================================= */
+let currentSummaryDept = null;
+
+document.querySelectorAll("#summary-dept-row button").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("#summary-dept-row button").forEach(b=>b.classList.remove("active"));
+    btn.classList.add("active");
+    currentSummaryDept = btn.dataset.dept;
+    const subSel = document.getElementById("summary-sub-dept");
+    subSel.disabled = false;
+    subSel.value = "";
+  });
+});
+
+document.getElementById("btn-generate-summary").addEventListener("click", async () => {
+  const start = document.getElementById("summary-start").value;
+  const end = document.getElementById("summary-end").value;
+  const subDept = document.getElementById("summary-sub-dept").value;
+  const msg = document.getElementById("summary-msg");
+
+  if(!start || !end){
+    msg.className = "msg error"; msg.textContent = "Please select both a From Date and To Date.";
+    return;
+  }
+  if(start > end){
+    msg.className = "msg error"; msg.textContent = "From Date must be on or before To Date.";
+    return;
+  }
+  if(!currentSummaryDept){
+    msg.className = "msg error"; msg.textContent = "Please select a Main Department.";
+    return;
+  }
+  if(!subDept){
+    msg.className = "msg error"; msg.textContent = "Please select a Sub-Department.";
+    return;
+  }
+
+  msg.className = "msg"; msg.textContent = "Generating summary...";
+
+  let resp;
+  try{
+    resp = await callGas("listSummary", {
+      startDate: start, endDate: end,
+      mainDepartment: currentSummaryDept, subDepartment: subDept
+    });
+  } catch(err){
+    msg.className = "msg error"; msg.textContent = "Error: " + err.message; return;
+  }
+  if(!resp.success){
+    msg.className = "msg error"; msg.textContent = "Error: " + (resp.error || "");
+    return;
+  }
+  msg.textContent = "";
+  renderSummary(resp.data || [], start, end, currentSummaryDept, subDept);
+});
+
+function renderSummary(rows, start, end, mainDept, subDept){
+  const area = document.getElementById("summary-print-area");
+  const tbody = document.getElementById("summary-tbody");
+  tbody.innerHTML = "";
+
+  document.getElementById("summary-range-label").textContent =
+    `${mainDept} / ${subDept}  ·  ${start} to ${end}  ·  ${rows.length} record(s)  ·  generated ${new Date().toLocaleString()}`;
+
+  let grandTotal = 0;
+
+  if(rows.length === 0){
+    tbody.innerHTML = `<tr><td colspan="12" style="text-align:center;color:var(--muted);">No records found for this selection.</td></tr>`;
+  } else {
+    rows.forEach(row => {
+      const amt = Number(row.total_amount);
+      if(!isNaN(amt)) grandTotal += amt;
+      const tr = document.createElement("tr");
+      const statusClass = row.status === "COMPLETED" ? "status-completed" : "status-pending";
+      tr.innerHTML = `
+        <td>${escapeHtml(row.date)}</td>
+        <td>${escapeHtml(row.supplier)}</td>
+        <td>${escapeHtml(row.main_department)}</td>
+        <td>${escapeHtml(row.sub_department)}</td>
+        <td>${escapeHtml(row.inv_odo_no)}</td>
+        <td>${escapeHtml(row.po_no)}</td>
+        <td>${row.total_carton === "" || row.total_carton == null ? "-" : row.total_carton}</td>
+        <td>${formatMoney(row.total_amount)}</td>
+        <td>${escapeHtml(row.record_by)}</td>
+        <td>${escapeHtml(row.key_in_by) || "-"}</td>
+        <td>${escapeHtml(row.date_key_in) || "-"}</td>
+        <td class="${statusClass}">${escapeHtml(row.status)}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  document.getElementById("summary-grand-total").textContent = formatMoney(grandTotal);
+  area.style.display = "";
+  area.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+document.getElementById("btn-print-summary").addEventListener("click", () => {
   window.print();
 });
 
