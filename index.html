@@ -741,13 +741,13 @@ document.getElementById("f-main-dept").addEventListener("change", (e) => {
   const inp = document.getElementById("f-sub-dept-input");
   if(e.target.value === "CONSIGNMENT"){
     sel.style.display = "none"; sel.disabled = true; sel.value = "";
-    inp.style.display = ""; inp.value = "";
+    inp.classList.remove("brand-input"); inp.value = "";
   } else if(e.target.value){
     sel.style.display = ""; sel.disabled = false;
-    inp.style.display = "none"; inp.value = "";
+    inp.classList.add("brand-input"); inp.value = "";
   } else {
     sel.style.display = ""; sel.disabled = true; sel.value = "";
-    inp.style.display = "none"; inp.value = "";
+    inp.classList.add("brand-input"); inp.value = "";
   }
 });
 function getNewEntrySubDept(){
@@ -1054,11 +1054,11 @@ function setDetailSubDeptField(mainDept, subDeptValue){
   const inp = document.getElementById("d-sub-dept-input");
   if(mainDept === "CONSIGNMENT"){
     sel.style.display = "none";
-    inp.style.display = "";
+    inp.classList.remove("brand-input");
     inp.value = subDeptValue || "";
   } else {
     sel.style.display = "";
-    inp.style.display = "none";
+    inp.classList.add("brand-input");
     sel.value = subDeptValue || "";
   }
 }
