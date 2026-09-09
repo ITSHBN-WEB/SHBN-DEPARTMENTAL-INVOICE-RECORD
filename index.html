@@ -741,13 +741,13 @@ document.getElementById("f-main-dept").addEventListener("change", (e) => {
   const inp = document.getElementById("f-sub-dept-input");
   if(e.target.value === "CONSIGNMENT"){
     sel.style.display = "none"; sel.disabled = true; sel.value = "";
-    inp.classList.add("brand-input"); inp.style.display = ""; inp.value = "";
+    inp.style.display = ""; inp.value = "";
   } else if(e.target.value){
     sel.style.display = ""; sel.disabled = false;
-    inp.classList.remove("brand-input"); inp.style.display = "none"; inp.value = "";
+    inp.style.display = "none"; inp.value = "";
   } else {
     sel.style.display = ""; sel.disabled = true; sel.value = "";
-    inp.classList.remove("brand-input"); inp.style.display = "none"; inp.value = "";
+    inp.style.display = "none"; inp.value = "";
   }
 });
 function getNewEntrySubDept(){
