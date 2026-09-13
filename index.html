@@ -874,6 +874,7 @@ document.getElementById("btn-submit-new").addEventListener("click", async () => 
   document.getElementById("f-sub-dept-select").style.display = "";
   document.getElementById("f-sub-dept-input").value = "";
   document.getElementById("f-sub-dept-input").style.display = "none";
+  document.getElementById("f-sub-dept-input").classList.add("brand-input");
 });
 
 /* =========================================================
@@ -915,10 +916,11 @@ async function loadPending(){
 function renderPendingNotice(){
   const notice = document.getElementById("pending-notice");
   const depts = ["HARDLINE","SOFTLINE","EG","CONSIGNMENT"];
+  const label = d => d === "EG" ? "EG" : (d.charAt(0) + d.slice(1).toLowerCase());
   const parts = depts
     .map(d => ({ d, count: allPendingRows.filter(r => r.main_department === d).length }))
     .filter(x => x.count > 0)
-    .map(x => `! ${x.count} ${x.d.charAt(0)+x.d.slice(1).toLowerCase()} Inv(s) pending.`);
+    .map(x => `! ${x.count} ${label(x.d)} Inv(s) pending.`);
 
   if(parts.length === 0){
     notice.classList.remove("show");
@@ -1038,7 +1040,7 @@ function renderCompletedList(){
       </div>
       <span class="stamp completed">COMPLETED</span>
     `;
-    li.addEventListener("click", () => openDetail(row, true));
+    li.addEventListener("click", () => openDetail(row));
     list.appendChild(li);
   });
 }
@@ -1063,7 +1065,7 @@ function setDetailSubDeptField(mainDept, subDeptValue){
   }
 }
 
-function openDetail(row, readOnlyAll){
+function openDetail(row){
   activeRow = row;
   editMode = false;
   document.getElementById("d-date").value = row.date || "";
@@ -1111,8 +1113,30 @@ document.getElementById("d-main-dept").addEventListener("change", (e) => {
   document.getElementById("d-sub-dept-input").readOnly = (e.target.value !== "CONSIGNMENT");
 });
 
+// Re-populates every editable field from the original row data — used
+// when the user cancels an in-progress edit (toggles the pencil back
+// off without clicking "Save Changes"), so no half-typed changes are
+// left visibly showing as if they'd been saved.
+function revertDetailFieldsFromActiveRow(){
+  if(!activeRow) return;
+  document.getElementById("d-supplier").value = activeRow.supplier || "";
+  document.getElementById("d-main-dept").value = activeRow.main_department || "";
+  setDetailSubDeptField(activeRow.main_department, activeRow.sub_department);
+  document.getElementById("d-inv").value = activeRow.inv_odo_no || "";
+  document.getElementById("d-po").value = activeRow.po_no || "";
+  document.getElementById("d-date-received").value = ddmmyyyyToIso(activeRow.date_received);
+  document.getElementById("d-carton").value = activeRow.total_carton ?? "";
+  document.getElementById("d-amount").dataset.raw = activeRow.total_amount ?? "";
+  document.getElementById("d-recordby").value = activeRow.record_by || "";
+}
+
 document.getElementById("btn-edit-toggle").addEventListener("click", () => {
   editMode = !editMode;
+
+  if(!editMode){
+    revertDetailFieldsFromActiveRow();
+  }
+
   const editableTextIds = ["d-supplier","d-inv","d-po","d-carton","d-recordby"];
   editableTextIds.forEach(id => document.getElementById(id).readOnly = !editMode);
   document.getElementById("d-main-dept").disabled = !editMode;
@@ -1134,6 +1158,15 @@ document.getElementById("btn-edit-toggle").addEventListener("click", () => {
 
   document.getElementById("btn-save-changes").style.display = editMode ? "" : "none";
 });
+
+// Converts an <input type="date"> value ("yyyy-mm-dd") back into the
+// "dd.MM.yyyy" display format the backend stores, so activeRow can be
+// kept in sync with what was just saved without re-fetching.
+function isoToDdMmYyyy(iso){
+  if(!iso) return "";
+  const [y,m,d] = iso.split("-");
+  return `${d}.${m}.${y}`;
+}
 
 document.getElementById("btn-save-changes").addEventListener("click", async () => {
   if(!activeRow) return;
@@ -1184,6 +1217,15 @@ document.getElementById("btn-save-changes").addEventListener("click", async () =
   msg.className = "msg ok";
   msg.textContent = "Changes saved.";
   editMode = false;
+  activeRow.supplier = supplier;
+  activeRow.main_department = mainDept;
+  activeRow.sub_department = subDept;
+  activeRow.inv_odo_no = inv;
+  activeRow.po_no = po;
+  activeRow.date_received = isoToDdMmYyyy(dateReceived);
+  activeRow.total_carton = carton === "" ? "" : Number(carton);
+  activeRow.total_amount = amount === "" ? "" : Number(amount);
+  activeRow.record_by = recordby;
   const editableTextIds = ["d-supplier","d-inv","d-po","d-carton","d-recordby"];
   editableTextIds.forEach(id => document.getElementById(id).readOnly = true);
   document.getElementById("d-main-dept").disabled = true;
