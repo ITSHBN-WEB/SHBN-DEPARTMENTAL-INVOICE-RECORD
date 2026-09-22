@@ -650,13 +650,30 @@ const ADMIN_PASSWORD = "8888";
 // Calls the Apps Script backend. Uses text/plain content-type so the
 // browser sends a "simple request" and skips the CORS preflight,
 // which Apps Script web apps don't handle.
-async function callGas(action, payload = {}){
-  const res = await fetch(GAS_URL, {
-    method: "POST",
-    headers: { "Content-Type": "text/plain;charset=utf-8" },
-    body: JSON.stringify({ action, ...payload })
-  });
-  return res.json();
+// Calls the Apps Script backend. Uses text/plain content-type so the
+// browser sends a "simple request" and skips the CORS preflight,
+// which Apps Script web apps don't handle.
+//
+// Right after a new deployment (or first-time authorization of a new
+// service), Google's infrastructure can take a little while to fully
+// propagate — during that window a request can occasionally come back
+// as an HTML page instead of the script's JSON. That failure is
+// transient, not a real error, so this retries a couple of times with
+// a short pause before actually surfacing anything to the user.
+async function callGas(action, payload = {}, retries = 2){
+  for(let attempt = 0; attempt <= retries; attempt++){
+    try{
+      const res = await fetch(GAS_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ action, ...payload })
+      });
+      return await res.json();
+    } catch(err){
+      if(attempt === retries) throw err;
+      await new Promise(resolve => setTimeout(resolve, 800 * (attempt + 1)));
+    }
+  }
 }
 
 /* =========================================================
